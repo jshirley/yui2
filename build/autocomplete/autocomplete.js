@@ -1937,6 +1937,14 @@ YAHOO.widget.AutoComplete.prototype._populateList = function(sQuery, oResponse, 
         
 };
 
+/**
+ * Returns the value from a matched result.
+ *
+ * @method resultMatch
+ * @param oResult {Object} The matching result from the data source
+ * @return {String} value that the input element is set to
+ *
+ */
 YAHOO.widget.AutoComplete.prototype.resultMatch = function(oResult) {
     return (YAHOO.lang.isString(oResult)) ? oResult : (YAHOO.lang.isArray(oResult)) ? oResult[0] : (oResult[sMatchKey] || "");
 }

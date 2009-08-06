@@ -1879,7 +1879,9 @@ YAHOO.widget.AutoComplete.prototype._populateList = function(sQuery, oResponse, 
                         // Results need to be converted back to an array
                         var aResult = [];
                         // Match key is first
+
                         aResult[0] = (YAHOO.lang.isString(oResult)) ? oResult : oResult[sMatchKey] || oResult[this.key];
+
                         // Add additional data to the result array
                         var fields = this.dataSource.responseSchema.fields;
                         if(YAHOO.lang.isArray(fields) && (fields.length > 1)) {
@@ -1906,7 +1908,8 @@ YAHOO.widget.AutoComplete.prototype._populateList = function(sQuery, oResponse, 
                     }
 
                     // The matching value, including backward compatibility for array format and safety net
-                    elListItem._sResultMatch = (YAHOO.lang.isString(oResult)) ? oResult : (YAHOO.lang.isArray(oResult)) ? oResult[0] : (oResult[sMatchKey] || "");
+                    elListItem._sResultMatch = this.resultMatch(oResult);
+
                     elListItem._oResultData = oResult; // Additional data
                     this._populateListItem(elListItem, oResult, sCurQuery);
                     elListItem.style.display = "";
@@ -2409,6 +2412,18 @@ YAHOO.widget.AutoComplete.prototype._selectItem = function(elListItem) {
     YAHOO.log("Item selected: " + YAHOO.lang.dump(elListItem._oResultData), "info", this.toString());
     this._toggleContainer(false);
 };
+
+/**
+ * Returns the value from a matched result.
+ *
+ * @method resultMatch
+ * @param oResult {Object} The matching result from the data source
+ * @return {String} value that the input element is set to
+ *
+ */
+YAHOO.widget.AutoComplete.prototype.resultMatch = function(oResult) {
+    return (YAHOO.lang.isString(oResult)) ? oResult : (YAHOO.lang.isArray(oResult)) ? oResult[0] : (oResult[sMatchKey] || "");
+}
 
 /**
  * If an item is highlighted in the container, the right arrow key jumps to the
