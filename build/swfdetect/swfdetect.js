@@ -81,9 +81,26 @@ YAHOO.util.SWFDetect = {
 		
 		isFlashVersionAtLeast : function (ver) {
 			return version >= ver;
-		}	
+		},
+		
+		parseFlashVersion : function (ver)
+		{
+			var flashVersion = ver;
+			if(YAHOO.lang.isString(ver))
+			{
+				var verSplit = ver.split(".");
+				if(verSplit.length > 2)
+				{
+					flashVersion = parseInt(verSplit[0]);
+					flashVersion += parseInt(verSplit[2]) * .001;
+				}
+				else
+				{
+					flashVersion = parseFloat(ver);
+				}					
+			}
+			return YAHOO.lang.isNumber(flashVersion) ? flashVersion : null;
+		}			
 	};
 })();
-
-YAHOO.register("swfdetect", YAHOO.util.SWFDetect, {version: "2.7.0", build: "1796"});
-YAHOO.register("swfdetect", YAHOO.widget.SWFDetect, {version: "@VERSION@", build: "@BUILD@"});
+YAHOO.register("swfdetect", YAHOO.util.SWFDetect, {version: "@VERSION@", build: "@BUILD@"});

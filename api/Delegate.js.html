@@ -16,7 +16,7 @@
 <div id="doc3" class="yui-t2">
 	<div id="hd">
         <h1><a href="http://developer.yahoo.com/yui/" title="Yahoo! UI Library">Yahoo! UI Library</a></h1>
-        <h3>Event Utility Event Delegation Module&nbsp; <span class="subtitle">2.7.0</span></h3>
+        <h3>Event Utility Event Delegation Module&nbsp; <span class="subtitle">2.8.0r4</span></h3>
         <a href="./index.html" title="Yahoo! UI Library">Yahoo! UI Library</a> 
             &gt; <a href="./module_event-delegate.html" title="event-delegate">event-delegate</a>
                 
@@ -48,7 +48,10 @@
                             #doc3 .classopts { display:none; }
                         </style>
                         <div class="highlight" ><pre><span class="c">/**</span>
-<span class="c"> * Augments the Event Utility with event delegation support.</span>
+<span class="c"> * Augments the Event Utility with a &lt;code&gt;delegate&lt;/code&gt; method that </span>
+<span class="c"> * facilitates easy creation of delegated event listeners.  (Note: Using CSS </span>
+<span class="c"> * selectors as the filtering criteria for delegated event listeners requires </span>
+<span class="c"> * inclusion of the Selector Utility.)</span>
 <span class="c"> *</span>
 <span class="c"> * @module event-delegate</span>
 <span class="c"> * @title Event Utility Event Delegation Module</span>
@@ -60,7 +63,23 @@
 
 	<span class="k">var</span> <span class="nx">Event</span> <span class="o">=</span> <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Event</span><span class="o">,</span>
 		<span class="nx">Lang</span> <span class="o">=</span> <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">lang</span><span class="o">,</span>
-		<span class="nx">delegates</span> <span class="o">=</span> <span class="o">[];</span>
+		<span class="nx">delegates</span> <span class="o">=</span> <span class="o">[],</span>
+
+
+		<span class="nx">getMatch</span> <span class="o">=</span> <span class="k">function</span><span class="o">(</span><span class="nx">el</span><span class="o">,</span> <span class="nx">selector</span><span class="o">,</span> <span class="nx">container</span><span class="o">)</span> <span class="o">{</span>
+		
+			<span class="k">var</span> <span class="nx">returnVal</span><span class="o">;</span>
+		
+			<span class="k">if</span> <span class="o">(!</span><span class="nx">el</span> <span class="o">||</span> <span class="nx">el</span> <span class="o">===</span> <span class="nx">container</span><span class="o">)</span> <span class="o">{</span>
+				<span class="nx">returnVal</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+			<span class="o">}</span>
+			<span class="k">else</span> <span class="o">{</span>
+				<span class="nx">returnVal</span> <span class="o">=</span> <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Selector</span><span class="o">.</span><span class="nx">test</span><span class="o">(</span><span class="nx">el</span><span class="o">,</span> <span class="nx">selector</span><span class="o">)</span> <span class="o">?</span> <span class="nx">el</span><span class="o">:</span> <span class="nx">getMatch</span><span class="o">(</span><span class="nx">el</span><span class="o">.</span><span class="nx">parentNode</span><span class="o">,</span> <span class="nx">selector</span><span class="o">,</span> <span class="nx">container</span><span class="o">);</span>
+			<span class="o">}</span>
+		
+			<span class="k">return</span> <span class="nx">returnVal</span><span class="o">;</span>
+		
+		<span class="o">};</span>
 
 
 	<span class="nx">Lang</span><span class="o">.</span><span class="nx">augmentObject</span><span class="o">(</span><span class="nx">Event</span><span class="o">,</span> <span class="o">{</span>
@@ -76,10 +95,10 @@
 <span class="c">		 * determine for what element(s) the event listener should be called.		</span>
 <span class="c">		 * @param {Object}   obj	An arbitrary object that will be </span>
 <span class="c">		 *                             passed as a parameter to the listener.</span>
-<span class="c">		 * @param {Boolean|object}  overrideContext  If true, the obj passed in becomes</span>
-<span class="c">		 *                             the execution context of the listener. If an</span>
-<span class="c">		 *                             object, this object becomes the execution</span>
-<span class="c">		 *                             context.</span>
+<span class="c">		 * @param {Boolean|object}  overrideContext  If true, the value of the </span>
+<span class="c">		 * 							obj parameter becomes the execution context</span>
+<span class="c">		 *                          of the listener. If an object, this object</span>
+<span class="c">		 *                          becomes the execution context.</span>
 <span class="c">		 * @return {Function} Function that will call the event listener </span>
 <span class="c">		 * specified by the &lt;code&gt;YAHOO.util.Event.delegate&lt;/code&gt; method.</span>
 <span class="c">         * @private</span>
@@ -92,12 +111,18 @@
 
 				<span class="k">var</span> <span class="nx">container</span> <span class="o">=</span> <span class="k">this</span><span class="o">,</span>
 					<span class="nx">target</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">getTarget</span><span class="o">(</span><span class="nx">event</span><span class="o">),</span>
+					<span class="nx">selector</span> <span class="o">=</span> <span class="nx">filter</span><span class="o">,</span>
+
+					<span class="c">//	The user might have specified the document object </span>
+<span class="c"></span>					<span class="c">//	as the delegation container, in which case it is not </span>
+<span class="c"></span>					<span class="c">//	nessary to scope the provided CSS selector(s) to the </span>
+<span class="c"></span>					<span class="c">//	delegation container</span>
+<span class="c"></span>					<span class="nx">bDocument</span> <span class="o">=</span> <span class="o">(</span><span class="nx">container</span><span class="o">.</span><span class="nx">nodeType</span> <span class="o">===</span> <span class="m">9</span><span class="o">),</span>
+
 					<span class="nx">matchedEl</span><span class="o">,</span>
 					<span class="nx">context</span><span class="o">,</span>
-					<span class="nx">elements</span><span class="o">,</span>
-					<span class="nx">element</span><span class="o">,</span>
-					<span class="nx">nElements</span><span class="o">,</span>
-					<span class="nx">i</span><span class="o">;</span>
+					<span class="nx">sID</span><span class="o">,</span>
+					<span class="nx">sIDSelector</span><span class="o">;</span>
 
 
 				<span class="k">if</span> <span class="o">(</span><span class="nx">Lang</span><span class="o">.</span><span class="nx">isFunction</span><span class="o">(</span><span class="nx">filter</span><span class="o">))</span> <span class="o">{</span>
@@ -105,20 +130,32 @@
 				<span class="o">}</span>
 				<span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="nx">Lang</span><span class="o">.</span><span class="nx">isString</span><span class="o">(</span><span class="nx">filter</span><span class="o">))</span> <span class="o">{</span>
 
-					<span class="nx">elements</span> <span class="o">=</span> <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Selector</span><span class="o">.</span><span class="nx">query</span><span class="o">(</span><span class="nx">filter</span><span class="o">,</span> <span class="nx">container</span><span class="o">);</span>
-					<span class="nx">nElements</span> <span class="o">=</span> <span class="nx">elements</span><span class="o">.</span><span class="nx">length</span><span class="o">;</span>
+					<span class="k">if</span> <span class="o">(!</span><span class="nx">bDocument</span><span class="o">)</span> <span class="o">{</span>
 
-					<span class="k">if</span> <span class="o">(</span><span class="nx">nElements</span> <span class="o">&gt;</span> <span class="m">0</span><span class="o">)</span> <span class="o">{</span>
+						<span class="nx">sID</span> <span class="o">=</span> <span class="nx">container</span><span class="o">.</span><span class="nx">id</span><span class="o">;</span>
 
-						<span class="nx">i</span> <span class="o">=</span> <span class="nx">elements</span><span class="o">.</span><span class="nx">length</span> <span class="o">-</span> <span class="m">1</span><span class="o">;</span>
+						<span class="k">if</span> <span class="o">(!</span><span class="nx">sID</span><span class="o">)</span> <span class="o">{</span>
+							<span class="nx">sID</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">generateId</span><span class="o">(</span><span class="nx">container</span><span class="o">);</span>
+						<span class="o">}</span>						
 
-						<span class="k">do</span> <span class="o">{</span>
-							<span class="nx">element</span> <span class="o">=</span> <span class="nx">elements</span><span class="o">[</span><span class="nx">i</span><span class="o">];</span>
-		                    <span class="k">if</span> <span class="o">(</span><span class="nx">element</span> <span class="o">===</span> <span class="nx">target</span> <span class="o">||</span> <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Dom</span><span class="o">.</span><span class="nx">isAncestor</span><span class="o">(</span><span class="nx">element</span><span class="o">,</span> <span class="nx">target</span><span class="o">))</span> <span class="o">{</span>
-								<span class="nx">matchedEl</span> <span class="o">=</span> <span class="nx">element</span><span class="o">;</span>
-							<span class="o">}</span>
-						<span class="o">}</span>
-						<span class="k">while</span> <span class="o">(</span><span class="nx">i</span><span class="o">--);</span>
+						<span class="c">//	Scope all selectors to the container</span>
+<span class="c"></span>						<span class="nx">sIDSelector</span> <span class="o">=</span> <span class="o">(</span><span class="s2">&quot;#&quot;</span> <span class="o">+</span> <span class="nx">sID</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="o">);</span>
+						<span class="nx">selector</span> <span class="o">=</span> <span class="o">(</span><span class="nx">sIDSelector</span> <span class="o">+</span> <span class="nx">filter</span><span class="o">).</span><span class="nx">replace</span><span class="o">(</span><span class="sr">/,/gi</span><span class="o">,</span> <span class="o">(</span><span class="s2">&quot;,&quot;</span> <span class="o">+</span> <span class="nx">sIDSelector</span><span class="o">));</span>
+
+					<span class="o">}</span>
+
+
+					<span class="k">if</span> <span class="o">(</span><span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Selector</span><span class="o">.</span><span class="nx">test</span><span class="o">(</span><span class="nx">target</span><span class="o">,</span> <span class="nx">selector</span><span class="o">))</span> <span class="o">{</span>
+						<span class="nx">matchedEl</span> <span class="o">=</span> <span class="nx">target</span><span class="o">;</span>
+					<span class="o">}</span>
+					<span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Selector</span><span class="o">.</span><span class="nx">test</span><span class="o">(</span><span class="nx">target</span><span class="o">,</span> <span class="o">((</span><span class="nx">selector</span><span class="o">.</span><span class="nx">replace</span><span class="o">(</span><span class="sr">/,/gi</span><span class="o">,</span> <span class="s2">&quot; *,&quot;</span><span class="o">))</span> <span class="o">+</span> <span class="s2">&quot; *&quot;</span><span class="o">)))</span> <span class="o">{</span>
+
+						<span class="c">//	The target is a descendant of an element matching </span>
+<span class="c"></span>						<span class="c">//	the selector, so crawl up to find the ancestor that </span>
+<span class="c"></span>						<span class="c">//	matches the selector</span>
+<span class="c"></span>
+						<span class="nx">matchedEl</span> <span class="o">=</span> <span class="nx">getMatch</span><span class="o">(</span><span class="nx">target</span><span class="o">,</span> <span class="nx">selector</span><span class="o">,</span> <span class="nx">container</span><span class="o">);</span>
+
 					<span class="o">}</span>
 
 				<span class="o">}</span>
@@ -157,7 +194,9 @@
 <span class="c">		 * receive three arguments by default: the DOM event, the element  </span>
 <span class="c">		 * specified by the filtering function or CSS selector, and the </span>
 <span class="c">		 * container element (the element to which the event listener is </span>
-<span class="c">		 * bound).</span>
+<span class="c">		 * bound).  (Note: Using the delegate method requires the event-delegate </span>
+<span class="c">		 * module.  Using CSS selectors as the filtering criteria for delegated </span>
+<span class="c">		 * event listeners requires inclusion of the Selector Utility.)</span>
 <span class="c">         *</span>
 <span class="c">         * @method delegate</span>
 <span class="c">         *</span>
@@ -170,29 +209,29 @@
 <span class="c">		 * determine for what element(s) the event listener should be called. </span>
 <span class="c">		 * When a function is specified, the function should return an </span>
 <span class="c">		 * HTML element.  Using a CSS Selector requires the inclusion of the </span>
-<span class="c">		 * CSS Selector utility (YAHOO.util.Selector).</span>
+<span class="c">		 * CSS Selector Utility.</span>
 <span class="c">         * @param {Object}   obj    An arbitrary object that will be </span>
 <span class="c">         *                             passed as a parameter to the listener</span>
-<span class="c">         * @param {Boolean|object}  overrideContext  If true, the obj passed in becomes</span>
+<span class="c">         * @param {Boolean|object}  overrideContext  If true, the value of the obj parameter becomes</span>
 <span class="c">         *                             the execution context of the listener. If an</span>
 <span class="c">         *                             object, this object becomes the execution</span>
 <span class="c">         *                             context.</span>
-<span class="c">         * @return {Boolean} true Returns true if the action was successful or defered,</span>
-<span class="c">         *                        false if one or more of the elements </span>
-<span class="c">         *                        could not have the listener attached,</span>
-<span class="c">         *                        or if the operation throws an exception.</span>
+<span class="c">         * @return {Boolean} Returns true if the action was successful or defered,</span>
+<span class="c">         *                   false if one or more of the elements </span>
+<span class="c">         *                   could not have the listener attached,</span>
+<span class="c">         *                   or if the operation throws an exception.</span>
 <span class="c">         * @static</span>
 <span class="c">         * @for Event</span>
 <span class="c">         */</span>
 		<span class="nx">delegate</span><span class="o">:</span> <span class="k">function</span> <span class="o">(</span><span class="nx">container</span><span class="o">,</span> <span class="nx">type</span><span class="o">,</span> <span class="nx">fn</span><span class="o">,</span> <span class="nx">filter</span><span class="o">,</span> <span class="nx">obj</span><span class="o">,</span> <span class="nx">overrideContext</span><span class="o">)</span> <span class="o">{</span>
 
-			<span class="k">var</span> <span class="nx">sType</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">_getType</span><span class="o">(</span><span class="nx">type</span><span class="o">),</span>
+			<span class="k">var</span> <span class="nx">sType</span> <span class="o">=</span> <span class="nx">type</span><span class="o">,</span>
 				<span class="nx">fnMouseDelegate</span><span class="o">,</span>
 				<span class="nx">fnDelegate</span><span class="o">;</span>
 
 
 			<span class="k">if</span> <span class="o">(</span><span class="nx">Lang</span><span class="o">.</span><span class="nx">isString</span><span class="o">(</span><span class="nx">filter</span><span class="o">)</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">YAHOO</span><span class="o">.</span><span class="nx">util</span><span class="o">.</span><span class="nx">Selector</span><span class="o">)</span> <span class="o">{</span>
-		        <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">log</span><span class="o">(</span><span class="s2">&quot;Using delegate functionality with a CSS selector requires the Selector Utility&quot;</span><span class="o">,</span> <span class="s2">&quot;error&quot;</span><span class="o">,</span> <span class="s2">&quot;Event&quot;</span><span class="o">);</span>
+				<span class="nx">YAHOO</span><span class="o">.</span><span class="nx">log</span><span class="o">(</span><span class="s2">&quot;Using a CSS selector to define the filtering criteria for a delegated listener requires the Selector Utility.&quot;</span><span class="o">,</span> <span class="s2">&quot;error&quot;</span><span class="o">,</span> <span class="s2">&quot;Event&quot;</span><span class="o">);</span>
 		        <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
 			<span class="o">}</span>
 
@@ -200,9 +239,12 @@
 			<span class="k">if</span> <span class="o">(</span><span class="nx">type</span> <span class="o">==</span> <span class="s2">&quot;mouseenter&quot;</span> <span class="o">||</span> <span class="nx">type</span> <span class="o">==</span> <span class="s2">&quot;mouseleave&quot;</span><span class="o">)</span> <span class="o">{</span>
 
 				<span class="k">if</span> <span class="o">(!</span><span class="nx">Event</span><span class="o">.</span><span class="nx">_createMouseDelegate</span><span class="o">)</span> <span class="o">{</span>
-			        <span class="nx">YAHOO</span><span class="o">.</span><span class="nx">log</span><span class="o">(</span><span class="s2">&quot;Delegating a &quot;</span> <span class="o">+</span> <span class="nx">type</span> <span class="o">+</span> <span class="s2">&quot; event requires the event-mouseleave module&quot;</span><span class="o">,</span> <span class="s2">&quot;error&quot;</span><span class="o">,</span> <span class="s2">&quot;Event&quot;</span><span class="o">);</span>
-			        <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>				
+					<span class="nx">YAHOO</span><span class="o">.</span><span class="nx">log</span><span class="o">(</span><span class="s2">&quot;Delegating a &quot;</span> <span class="o">+</span> <span class="nx">type</span> <span class="o">+</span> <span class="s2">&quot; event requires the event-mouseenter module.&quot;</span><span class="o">,</span> <span class="s2">&quot;error&quot;</span><span class="o">,</span> <span class="s2">&quot;Event&quot;</span><span class="o">);</span>
+			        <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
 				<span class="o">}</span>
+
+				<span class="c">//	Look up the real event--either mouseover or mouseout</span>
+<span class="c"></span>				<span class="nx">sType</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">_getType</span><span class="o">(</span><span class="nx">type</span><span class="o">);</span>
 
 				<span class="nx">fnMouseDelegate</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">_createMouseDelegate</span><span class="o">(</span><span class="nx">fn</span><span class="o">,</span> <span class="nx">obj</span><span class="o">,</span> <span class="nx">overrideContext</span><span class="o">);</span>
 
@@ -238,17 +280,22 @@
 <span class="c">         * @param {Function} fn The method the event invokes.  If fn is</span>
 <span class="c">         *  undefined, then all event listeners for the type of event are </span>
 <span class="c">         *  removed.</span>
-<span class="c">         * @return {boolean} true Returns true if the unbind was successful, false </span>
+<span class="c">         * @return {boolean} Returns true if the unbind was successful, false </span>
 <span class="c">         *  otherwise.</span>
 <span class="c">         * @static</span>
 <span class="c">         * @for Event</span>
 <span class="c">         */</span>
 		<span class="nx">removeDelegate</span><span class="o">:</span> <span class="k">function</span> <span class="o">(</span><span class="nx">container</span><span class="o">,</span> <span class="nx">type</span><span class="o">,</span> <span class="nx">fn</span><span class="o">)</span> <span class="o">{</span>
 
-			<span class="k">var</span> <span class="nx">sType</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">_getType</span><span class="o">(</span><span class="nx">type</span><span class="o">),</span>
+			<span class="k">var</span> <span class="nx">sType</span> <span class="o">=</span> <span class="nx">type</span><span class="o">,</span>
 				<span class="nx">returnVal</span> <span class="o">=</span> <span class="kc">false</span><span class="o">,</span>
 				<span class="nx">index</span><span class="o">,</span>
 				<span class="nx">cacheItem</span><span class="o">;</span>
+
+			<span class="c">//	Look up the real event--either mouseover or mouseout</span>
+<span class="c"></span>			<span class="k">if</span> <span class="o">(</span><span class="nx">type</span> <span class="o">==</span> <span class="s2">&quot;mouseenter&quot;</span> <span class="o">||</span> <span class="nx">type</span> <span class="o">==</span> <span class="s2">&quot;mouseleave&quot;</span><span class="o">)</span> <span class="o">{</span>
+				<span class="nx">sType</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">_getType</span><span class="o">(</span><span class="nx">type</span><span class="o">);</span>
+			<span class="o">}</span>
 
 			<span class="nx">index</span> <span class="o">=</span> <span class="nx">Event</span><span class="o">.</span><span class="nx">_getCacheIndex</span><span class="o">(</span><span class="nx">delegates</span><span class="o">,</span> <span class="nx">container</span><span class="o">,</span> <span class="nx">sType</span><span class="o">,</span> <span class="nx">fn</span><span class="o">);</span>
 
@@ -299,10 +346,12 @@
                                 <li class=""><a href="module_cookie.html" title="cookie">cookie</a></li>
                                 <li class=""><a href="module_datasource.html" title="datasource">datasource</a></li>
                                 <li class=""><a href="module_datatable.html" title="datatable">datatable</a></li>
+                                <li class=""><a href="module_datemath.html" title="datemath">datemath</a></li>
                                 <li class=""><a href="module_dom.html" title="dom">dom</a></li>
                                 <li class=""><a href="module_dragdrop.html" title="dragdrop">dragdrop</a></li>
                                 <li class=""><a href="module_editor.html" title="editor">editor</a></li>
                                 <li class=""><a href="module_element.html" title="element">element</a></li>
+                                <li class=""><a href="module_element-delegate.html" title="element-delegate">element-delegate</a></li>
                                 <li class=""><a href="module_event.html" title="event">event</a></li>
                                 <li class="selected"><a href="module_event-delegate.html" title="event-delegate">event-delegate</a></li>
                                 <li class=""><a href="module_event-mouseenter.html" title="event-mouseenter">event-mouseenter</a></li>
@@ -322,6 +371,7 @@
                                 <li class=""><a href="module_resize.html" title="resize">resize</a></li>
                                 <li class=""><a href="module_selector.html" title="selector">selector</a></li>
                                 <li class=""><a href="module_slider.html" title="slider">slider</a></li>
+                                <li class=""><a href="module_storage.html" title="Storage">Storage</a></li>
                                 <li class=""><a href="module_stylesheet.html" title="stylesheet">stylesheet</a></li>
                                 <li class=""><a href="module_swf.html" title="swf">swf</a></li>
                                 <li class=""><a href="module_swfdetect.html" title="swfdetect">swfdetect</a></li>

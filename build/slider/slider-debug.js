@@ -742,7 +742,7 @@ YAHOO.extend(Slider, YAHOO.util.DragDrop, {
         this.valueChangeSource = source || Slider.SOURCE_SET_VALUE;
 
         t.lastOffset = [newOffset, newOffset];
-        this.verifyOffset(true);
+        this.verifyOffset();
 
         this._slideStart();
 
@@ -822,7 +822,7 @@ YAHOO.extend(Slider, YAHOO.util.DragDrop, {
         this.valueChangeSource = source || Slider.SOURCE_SET_VALUE;
 
         t.lastOffset = [newOffset, newOffset2];
-        this.verifyOffset(true);
+        this.verifyOffset();
 
         this._slideStart();
 
@@ -836,11 +836,10 @@ YAHOO.extend(Slider, YAHOO.util.DragDrop, {
     /**
      * Checks the background position element position.  If it has moved from the
      * baseline position, the constraints for the thumb are reset
-     * @param checkPos {boolean} check the position instead of using cached value
      * @method verifyOffset
      * @return {boolean} True if the offset is the same as the baseline.
      */
-    verifyOffset: function(checkPos) {
+    verifyOffset: function() {
 
         var xy = getXY(this.getEl()),
             t  = this.thumb;
@@ -2006,12 +2005,13 @@ DualSlider.prototype = {
      * @private
      */
     _oneTimeCallback : function (o,evt,fn) {
-        o.subscribe(evt,function () {
+        var sub = function () {
             // Unsubscribe myself
-            o.unsubscribe(evt,arguments.callee);
+            o.unsubscribe(evt, sub);
             // Pass the event handler arguments to the one time callback
-            fn.apply({},[].slice.apply(arguments));
-        });
+            fn.apply({},arguments);
+        };
+        o.subscribe(evt,sub);
     },
 
     /**

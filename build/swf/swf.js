@@ -71,6 +71,25 @@ YAHOO.namespace("widget");
 
 			isFlashVersionAtLeast : function (ver) {
 				return version >= ver;
+			},
+			
+			parseFlashVersion : function (ver)
+			{
+				var flashVersion = ver;
+				if(YAHOO.lang.isString(ver))
+				{
+					var verSplit = ver.split(".");
+					if(verSplit.length > 2)
+					{
+						flashVersion = parseInt(verSplit[0]);
+						flashVersion += parseInt(verSplit[2]) * .001;
+					}
+					else
+					{
+						flashVersion = parseFloat(ver);
+					}					
+				}
+				return YAHOO.lang.isNumber(flashVersion) ? flashVersion : null;
 			}	
 		};	
 	
@@ -121,16 +140,18 @@ YAHOO.widget.SWF = function (p_oElement /*:String*/, swfURL /*:String*/, p_oAttr
      */
 	this._id = Dom.generateId(null, "yuiswf");
 	
+	if(p_oAttributes.host) this._host = p_oAttributes.host;
+	
 	var _id = this._id;
     var oElement = Dom.get(p_oElement);
-	var flashVersion = (p_oAttributes["version"] || FLASH_VER);
+	var flashVersion = SWFDetect.parseFlashVersion(p_oAttributes["version"]) || FLASH_VER;
 	var isFlashVersionRight = SWFDetect.isFlashVersionAtLeast(flashVersion);
 	var canExpressInstall = (UA.flash >= 8.0);
 	var shouldExpressInstall = canExpressInstall && !isFlashVersionRight && p_oAttributes["useExpressInstall"];
 	var flashURL = (shouldExpressInstall)?EXPRESS_INSTALL_URL:swfURL;
 	var objstring = '<object ';
 	var w, h;
-	var flashvarstring = "YUISwfId=" + _id + "&YUIBridgeCallback=" + EVENT_HANDLER + "&";
+	var flashvarstring = "YUISwfId=" + _id + "&YUIBridgeCallback=" + EVENT_HANDLER;
 	
 	YAHOO.widget.SWF._instances[_id] = this;
 
@@ -172,10 +193,9 @@ YAHOO.widget.SWF = function (p_oElement /*:String*/, swfURL /*:String*/, p_oAttr
 				objstring += "</object>"; 
 
 				oElement.innerHTML = objstring;
-			}
-			
-			YAHOO.widget.SWF.superclass.constructor.call(this, Dom.get(_id));
-			this._swf = Dom.get(_id);	
+				YAHOO.widget.SWF.superclass.constructor.call(this, Dom.get(_id));
+				this._swf = Dom.get(_id);
+			}				
 };
 
 /**
@@ -202,14 +222,27 @@ YAHOO.widget.SWF.eventHandler = function (swfid, event) {
 YAHOO.extend(YAHOO.widget.SWF, YAHOO.util.Element, {
 	_eventHandler: function(event)
 	{
-		if (event.type == "swfReady") {
+		if (event.type == "swfReady") 
+		{
 			this.createEvent("swfReady", {fireOnce:true});
 	     	this.fireEvent("swfReady", event);
         }
-        else {
-	        this.fireEvent(event.type, event);
+		else if(event.type == "log")
+		{
+		}
+        else 
+		{
+	    	if(this._host && this._host.fireEvent) 
+			{
+				this._host.fireEvent(event.type, event);
+			}
+			else
+			{
+				this.fireEvent(event.type, event);
+			}
         } 
-	},	
+	},
+		
 	/**
 	 * Calls a specific function exposed by the SWF's
 	 * ExternalInterface.
@@ -219,11 +252,26 @@ YAHOO.extend(YAHOO.widget.SWF, YAHOO.util.Element, {
 	 */
 	callSWF: function (func, args)
 	{
+		if (!args) { 
+			  args= []; 
+		};
+		
 		if (this._swf[func]) {
 		return(this._swf[func].apply(this._swf, args));
 	    } else {
 		return null;
 	    }
+	},
+	
+	/**
+	 * Public accessor to the unique name of the SWF instance.
+	 *
+	 * @method toString
+	 * @return {String} Unique name of the SWF instance.
+	 */
+	toString: function()
+	{
+		return "SWF " + this._id;
 	}
 });
 

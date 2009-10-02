@@ -880,7 +880,7 @@ YAHOO.tool.TestRunner = (function(){
             runner._buildTestTree();
             
             //set when the test started
-            runner._root.results.duration = (new Date()).valueOf();
+            runner._root.results.duration = (new Date()).getTime();
             
             //fire the begin event
             runner.fireEvent(runner.BEGIN_EVENT);
@@ -1238,8 +1238,8 @@ YAHOO.util.Assert = {
      * @method isTypeOf
      * @static
      */
-    isTypeOf : function (expectedType /*:String*/, actualValue /*:Object*/, message /*:String*/) /*:Void*/{
-        if (typeof actualValue != expectedType){
+    isTypeOf : function (expected /*:String*/, actual /*:Object*/, message /*:String*/) /*:Void*/{
+        if (typeof actual != expected){
             throw new YAHOO.util.ComparisonFailure(this._formatMessage(message, "Value should be of type " + expected + "."), expected, typeof actual);
         }
     }
@@ -1263,7 +1263,7 @@ YAHOO.util.Assert = {
 YAHOO.util.AssertionError = function (message /*:String*/){
 
     //call superclass
-    arguments.callee.superclass.constructor.call(this, message);
+    //arguments.callee.superclass.constructor.call(this, message);
     
     /*
      * Error message. Must be duplicated to ensure browser receives it.
@@ -1281,7 +1281,7 @@ YAHOO.util.AssertionError = function (message /*:String*/){
 };
 
 //inherit methods
-YAHOO.lang.extend(YAHOO.util.AssertionError, Error, {
+YAHOO.lang.extend(YAHOO.util.AssertionError, Object, {
 
     /**
      * Returns a fully formatted error for an assertion failure. This should
@@ -1300,17 +1300,8 @@ YAHOO.lang.extend(YAHOO.util.AssertionError, Error, {
      */
     toString : function () /*:String*/ {
         return this.name + ": " + this.getMessage();
-    },
-    
-    /**
-     * Returns a primitive value version of the error. Same as toString().
-     * @method valueOf
-     * @return {String} A primitive value version of the error.
-     */
-    valueOf : function () /*:String*/ {
-        return this.toString();
     }
-
+    
 });
 
 /**
@@ -1329,7 +1320,7 @@ YAHOO.lang.extend(YAHOO.util.AssertionError, Error, {
 YAHOO.util.ComparisonFailure = function (message /*:String*/, expected /*:Object*/, actual /*:Object*/){
 
     //call superclass
-    arguments.callee.superclass.constructor.call(this, message);
+    YAHOO.util.AssertionError.call(this, message);
     
     /**
      * The expected value.
@@ -1386,7 +1377,7 @@ YAHOO.lang.extend(YAHOO.util.ComparisonFailure, YAHOO.util.AssertionError, {
 YAHOO.util.UnexpectedValue = function (message /*:String*/, unexpected /*:Object*/){
 
     //call superclass
-    arguments.callee.superclass.constructor.call(this, message);
+    YAHOO.util.AssertionError.call(this, message);
     
     /**
      * The unexpected value.
@@ -1432,7 +1423,7 @@ YAHOO.lang.extend(YAHOO.util.UnexpectedValue, YAHOO.util.AssertionError, {
 YAHOO.util.ShouldFail = function (message /*:String*/){
 
     //call superclass
-    arguments.callee.superclass.constructor.call(this, message || "This test should fail but didn't.");
+    YAHOO.util.AssertionError.call(this, message || "This test should fail but didn't.");
     
     /**
      * The name of the error that occurred.
@@ -1459,7 +1450,7 @@ YAHOO.lang.extend(YAHOO.util.ShouldFail, YAHOO.util.AssertionError);
 YAHOO.util.ShouldError = function (message /*:String*/){
 
     //call superclass
-    arguments.callee.superclass.constructor.call(this, message || "This test should have thrown an error but didn't.");
+    YAHOO.util.AssertionError.call(this, message || "This test should have thrown an error but didn't.");
     
     /**
      * The name of the error that occurred.
@@ -1488,7 +1479,7 @@ YAHOO.lang.extend(YAHOO.util.ShouldError, YAHOO.util.AssertionError);
 YAHOO.util.UnexpectedError = function (cause /*:Object*/){
 
     //call superclass
-    arguments.callee.superclass.constructor.call(this, "Unexpected error: " + cause.message);
+    YAHOO.util.AssertionError.call(this, "Unexpected error: " + cause.message);
     
     /**
      * The unexpected error that occurred.
@@ -1986,6 +1977,349 @@ YAHOO.util.DateAssert = {
 YAHOO.namespace("tool");
 
 //-----------------------------------------------------------------------------
+// TestManager object
+//-----------------------------------------------------------------------------
+
+/**
+ * Runs pages containing test suite definitions.
+ * @namespace YAHOO.tool
+ * @class TestManager
+ * @static
+ */
+YAHOO.tool.TestManager = {
+
+    /**
+     * Constant for the testpagebegin custom event
+     * @property TEST_PAGE_BEGIN_EVENT
+     * @static
+     * @type string
+     * @final
+     */
+    TEST_PAGE_BEGIN_EVENT /*:String*/ : "testpagebegin",
+
+    /**
+     * Constant for the testpagecomplete custom event
+     * @property TEST_PAGE_COMPLETE_EVENT
+     * @static
+     * @type string
+     * @final
+     */
+    TEST_PAGE_COMPLETE_EVENT /*:String*/ : "testpagecomplete",
+
+    /**
+     * Constant for the testmanagerbegin custom event
+     * @property TEST_MANAGER_BEGIN_EVENT
+     * @static
+     * @type string
+     * @final
+     */
+    TEST_MANAGER_BEGIN_EVENT /*:String*/ : "testmanagerbegin",
+
+    /**
+     * Constant for the testmanagercomplete custom event
+     * @property TEST_MANAGER_COMPLETE_EVENT
+     * @static
+     * @type string
+     * @final
+     */
+    TEST_MANAGER_COMPLETE_EVENT /*:String*/ : "testmanagercomplete",
+
+    //-------------------------------------------------------------------------
+    // Private Properties
+    //-------------------------------------------------------------------------
+    
+    
+    /**
+     * The URL of the page currently being executed.
+     * @type String
+     * @private
+     * @property _curPage
+     * @static
+     */
+    _curPage /*:String*/ : null,
+    
+    /**
+     * The frame used to load and run tests.
+     * @type Window
+     * @private
+     * @property _frame
+     * @static
+     */
+    _frame /*:Window*/ : null,
+    
+    /**
+     * The logger used to output results from the various tests.
+     * @type YAHOO.tool.TestLogger
+     * @private
+     * @property _logger
+     * @static
+     */
+    _logger : null,
+    
+    /**
+     * The timeout ID for the next iteration through the tests.
+     * @type int
+     * @private
+     * @property _timeoutId
+     * @static
+     */
+    _timeoutId /*:int*/ : 0,
+    
+    /**
+     * Array of pages to load.
+     * @type String[]
+     * @private
+     * @property _pages
+     * @static
+     */
+    _pages /*:String[]*/ : [],
+    
+    /**
+     * Aggregated results
+     * @type Object
+     * @private
+     * @property _results
+     * @static
+     */
+    _results: null,
+    
+    //-------------------------------------------------------------------------
+    // Private Methods
+    //-------------------------------------------------------------------------
+    
+    /**
+     * Handles TestRunner.COMPLETE_EVENT, storing the results and beginning
+     * the loop again.
+     * @param {Object} data Data about the event.
+     * @return {Void}
+     * @private
+     * @static
+     */
+    _handleTestRunnerComplete : function (data /*:Object*/) /*:Void*/ {
+
+        this.fireEvent(this.TEST_PAGE_COMPLETE_EVENT, {
+                page: this._curPage,
+                results: data.results
+            });
+    
+        //save results
+        //this._results[this.curPage] = data.results;
+        
+        //process 'em
+        this._processResults(this._curPage, data.results);
+        
+        this._logger.clearTestRunner();
+    
+        //if there's more to do, set a timeout to begin again
+        if (this._pages.length){
+            this._timeoutId = setTimeout(function(){
+                YAHOO.tool.TestManager._run();
+            }, 1000);
+        } else {
+            this.fireEvent(this.TEST_MANAGER_COMPLETE_EVENT, this._results);
+        }
+    },
+    
+    /**
+     * Processes the results of a test page run, outputting log messages
+     * for failed tests.
+     * @return {Void}
+     * @private
+     * @static
+     */
+    _processResults : function (page /*:String*/, results /*:Object*/) /*:Void*/ {
+
+        var r = this._results;
+        
+        r.passed += results.passed;
+        r.failed += results.failed;
+        r.ignored += results.ignored;
+        r.total += results.total;
+        r.duration += results.duration;
+        
+        if (results.failed){
+            r.failedPages.push(page);
+        } else {
+            r.passedPages.push(page);
+        }
+        
+        results.name = page;
+        results.type = "page";
+        
+        r[page] = results;
+    },
+    
+    /**
+     * Loads the next test page into the iframe.
+     * @return {Void}
+     * @static
+     * @private
+     */
+    _run : function () /*:Void*/ {
+    
+        //set the current page
+        this._curPage = this._pages.shift();
+
+        this.fireEvent(this.TEST_PAGE_BEGIN_EVENT, this._curPage);
+        
+        //load the frame - destroy history in case there are other iframes that
+        //need testing
+        this._frame.location.replace(this._curPage);
+    
+    },
+        
+    //-------------------------------------------------------------------------
+    // Public Methods
+    //-------------------------------------------------------------------------
+    
+    /**
+     * Signals that a test page has been loaded. This should be called from
+     * within the test page itself to notify the TestManager that it is ready.
+     * @return {Void}
+     * @static
+     */
+    load : function () /*:Void*/ {
+        if (parent.YAHOO.tool.TestManager !== this){
+            parent.YAHOO.tool.TestManager.load();
+        } else {
+            
+            if (this._frame) {
+                //assign event handling
+                var TestRunner = this._frame.YAHOO.tool.TestRunner;
+
+                this._logger.setTestRunner(TestRunner);
+                TestRunner.subscribe(TestRunner.COMPLETE_EVENT, this._handleTestRunnerComplete, this, true);
+                
+                //run it
+                TestRunner.run();
+            }
+        }
+    },
+    
+    /**
+     * Sets the pages to be loaded.
+     * @param {String[]} pages An array of URLs to load.
+     * @return {Void}
+     * @static
+     */
+    setPages : function (pages /*:String[]*/) /*:Void*/ {
+        this._pages = pages;
+    },
+    
+    /**
+     * Begins the process of running the tests.
+     * @return {Void}
+     * @static
+     */
+    start : function () /*:Void*/ {
+
+        if (!this._initialized) {
+
+            /**
+             * Fires when loading a test page
+             * @event testpagebegin
+             * @param curPage {string} the page being loaded
+             * @static
+             */
+            this.createEvent(this.TEST_PAGE_BEGIN_EVENT);
+
+            /**
+             * Fires when a test page is complete
+             * @event testpagecomplete
+             * @param obj {page: string, results: object} the name of the
+             * page that was loaded, and the test suite results
+             * @static
+             */
+            this.createEvent(this.TEST_PAGE_COMPLETE_EVENT);
+
+            /**
+             * Fires when the test manager starts running all test pages
+             * @event testmanagerbegin
+             * @static
+             */
+            this.createEvent(this.TEST_MANAGER_BEGIN_EVENT);
+
+            /**
+             * Fires when the test manager finishes running all test pages.  External
+             * test runners should subscribe to this event in order to get the
+             * aggregated test results.
+             * @event testmanagercomplete
+             * @param obj { pages_passed: int, pages_failed: int, tests_passed: int
+             *              tests_failed: int, passed: string[], failed: string[],
+             *              page_results: {} }
+             * @static
+             */
+            this.createEvent(this.TEST_MANAGER_COMPLETE_EVENT);
+
+            //create iframe if not already available
+            if (!this._frame){
+                var frame /*:HTMLElement*/ = document.createElement("iframe");
+                frame.style.visibility = "hidden";
+                frame.style.position = "absolute";
+                document.body.appendChild(frame);
+                this._frame = frame.contentWindow || frame.contentDocument.parentWindow;
+            }
+            
+            //create test logger if not already available
+            if (!this._logger){
+                this._logger = new YAHOO.tool.TestLogger();
+            }
+
+            this._initialized = true;
+        }
+
+
+        // reset the results cache
+        this._results = {
+        
+            passed: 0,
+            failed: 0,
+            ignored: 0,
+            total: 0,
+            type: "report",
+            name: "YUI Test Results",
+            duration: 0,
+            failedPages:[],
+            passedPages:[]
+            /*
+            // number of pages that pass
+            pages_passed: 0,
+            // number of pages that fail
+            pages_failed: 0,
+            // total number of tests passed
+            tests_passed: 0,
+            // total number of tests failed
+            tests_failed: 0,
+            // array of pages that passed
+            passed: [],
+            // array of pages that failed
+            failed: [],
+            // map of full results for each page
+            page_results: {}*/
+        };
+
+        this.fireEvent(this.TEST_MANAGER_BEGIN_EVENT, null);
+        this._run();
+    
+    },
+
+    /**
+     * Stops the execution of tests.
+     * @return {Void}
+     * @static
+     */
+    stop : function () /*:Void*/ {
+        clearTimeout(this._timeoutId);
+    }
+
+};
+
+YAHOO.lang.augmentObject(YAHOO.tool.TestManager, YAHOO.util.EventProvider.prototype);
+
+
+YAHOO.namespace("tool");
+
+//-----------------------------------------------------------------------------
 // TestLogger object
 //-----------------------------------------------------------------------------
 
@@ -2170,51 +2504,155 @@ YAHOO.lang.extend(YAHOO.tool.TestLogger, YAHOO.widget.LogReader, {
 
 YAHOO.namespace("tool.TestFormat");
 
-/**
- * Returns test results formatted as a JSON string. Requires JSON utility.
- * @param {Object} result The results object created by TestRunner.
- * @return {String} An XML-formatted string of results.
- * @namespace YAHOO.tool.TestFormat
- * @method JSON
- * @static
- */
-YAHOO.tool.TestFormat.JSON = function(results /*:Object*/) /*:String*/ {
-    return YAHOO.lang.JSON.stringify(results);
-};
+(function(){
 
-/**
- * Returns test results formatted as an XML string.
- * @param {Object} result The results object created by TestRunner.
- * @return {String} An XML-formatted string of results.
- * @namespace YAHOO.tool.TestFormat
- * @method XML
- * @static
- */
-YAHOO.tool.TestFormat.XML = function(results /*:Object*/) /*:String*/ {
+    /**
+     * Returns test results formatted as a JSON string. Requires JSON utility.
+     * @param {Object} result The results object created by TestRunner.
+     * @return {String} An XML-formatted string of results.
+     * @namespace YAHOO.tool.TestFormat
+     * @method JSON
+     * @static
+     */
+    YAHOO.tool.TestFormat.JSON = function(results) {
+        return YAHOO.lang.JSON.stringify(results);
+    };
 
-    var l = YAHOO.lang;
-    var xml /*:String*/ = "<" + results.type + " name=\"" + results.name.replace(/"/g, "&quot;").replace(/'/g, "&apos;") + "\"";
-    
-    if (l.isNumber(results.duration)){
-        xml += " duration=\"" + results.duration + "\"";
-    }
-    
-    if (results.type == "test"){
-        xml += " result=\"" + results.result + "\" message=\"" + results.message + "\">";
-    } else {
-        xml += " passed=\"" + results.passed + "\" failed=\"" + results.failed + "\" ignored=\"" + results.ignored + "\" total=\"" + results.total + "\">";
-        for (var prop in results) {
-            if (l.hasOwnProperty(results, prop) && l.isObject(results[prop]) && !l.isArray(results[prop])){
-                xml += arguments.callee(results[prop]);
+    /* (intentionally not documented)
+     * Simple escape function for XML attribute values.
+     * @param {String} text The text to escape.
+     * @return {String} The escaped text.
+     */
+    function xmlEscape(text){
+        return text.replace(/"'<>/g, function(c){
+            switch(c){
+                case "\"":
+                    return "&quot;";
+                case "'":
+                    return "&apos;";
+                case "<":
+                    return "&lt;";
+                case ">":
+                    return "&gt;";
             }
-        }        
-    }
+        });
+    } 
 
-    xml += "</" + results.type + ">";
-    
-    return xml;
+    /**
+     * Returns test results formatted as an XML string.
+     * @param {Object} result The results object created by TestRunner.
+     * @return {String} An XML-formatted string of results.
+     * @namespace YAHOO.tool.TestFormat
+     * @method XML
+     * @static
+     */
+    YAHOO.tool.TestFormat.XML = function(results) {
 
-};
+        function serializeToXML(results){
+            var l   = YAHOO.lang,
+                xml = "<" + results.type + " name=\"" + xmlEscape(results.name) + "\"";
+            
+            if (l.isNumber(results.duration)){
+                xml += " duration=\"" + results.duration + "\"";
+            }
+            
+            if (results.type == "test"){
+                xml += " result=\"" + results.result + "\" message=\"" + xmlEscape(results.message) + "\">";
+            } else {
+                xml += " passed=\"" + results.passed + "\" failed=\"" + results.failed + "\" ignored=\"" + results.ignored + "\" total=\"" + results.total + "\">";
+                for (var prop in results) {
+                    if (l.hasOwnProperty(results, prop) && l.isObject(results[prop]) && !l.isArray(results[prop])){
+                        xml += serializeToXML(results[prop]);
+                    }
+                }        
+            }
+
+            xml += "</" + results.type + ">";
+            
+            return xml;    
+        }
+
+        return "<?xml version=\"1.0\" charset=\"UTF-8\"?>" + serializeToXML(results);
+
+    };
+
+
+    /**
+     * Returns test results formatted in JUnit XML format.
+     * @param {Object} result The results object created by TestRunner.
+     * @return {String} An XML-formatted string of results.
+     * @namespace YAHOO.tool.TestFormat
+     * @method JUnitXML
+     * @static
+     */
+    YAHOO.tool.TestFormat.JUnitXML = function(results) {
+
+
+        function serializeToJUnitXML(results){
+            var l   = YAHOO.lang,
+                xml = "",
+                prop;
+                
+            switch (results.type){
+                //equivalent to testcase in JUnit
+                case "test":
+                    if (results.result != "ignore"){
+                        xml = "<testcase name=\"" + xmlEscape(results.name) + "\">";
+                        if (results.result == "fail"){
+                            xml += "<failure message=\"" + xmlEscape(results.message) + "\"><![CDATA[" + results.message + "]]></failure>";
+                        }
+                        xml+= "</testcase>";
+                    }
+                    break;
+                    
+                //equivalent to testsuite in JUnit
+                case "testcase":
+                
+                    xml = "<testsuite name=\"" + xmlEscape(results.name) + "\" tests=\"" + results.total + "\" failures=\"" + results.failed + "\">";
+                
+                    for (prop in results) {
+                        if (l.hasOwnProperty(results, prop) && l.isObject(results[prop]) && !l.isArray(results[prop])){
+                            xml += serializeToJUnitXML(results[prop]);
+                        }
+                    }              
+                    
+                    xml += "</testsuite>";
+                    break;
+                
+                case "testsuite":
+                    for (prop in results) {
+                        if (l.hasOwnProperty(results, prop) && l.isObject(results[prop]) && !l.isArray(results[prop])){
+                            xml += serializeToJUnitXML(results[prop]);
+                        }
+                    } 
+
+                    //skip output - no JUnit equivalent                    
+                    break;
+                    
+                case "report":
+                
+                    xml = "<testsuites>";
+                
+                    for (prop in results) {
+                        if (l.hasOwnProperty(results, prop) && l.isObject(results[prop]) && !l.isArray(results[prop])){
+                            xml += serializeToJUnitXML(results[prop]);
+                        }
+                    }              
+                    
+                    xml += "</testsuites>";            
+                
+                //no default
+            }
+            
+            return xml;
+     
+        }
+
+        return "<?xml version=\"1.0\" charset=\"UTF-8\"?>" + serializeToJUnitXML(results);
+    };
+  
+
+})();
 
 YAHOO.namespace("tool");
 

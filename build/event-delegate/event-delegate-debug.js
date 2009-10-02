@@ -1,5 +1,8 @@
 /**
- * Augments the Event Utility with event delegation support.
+ * Augments the Event Utility with a <code>delegate</code> method that 
+ * facilitates easy creation of delegated event listeners.  (Note: Using CSS 
+ * selectors as the filtering criteria for delegated event listeners requires 
+ * inclusion of the Selector Utility.)
  *
  * @module event-delegate
  * @title Event Utility Event Delegation Module
@@ -11,7 +14,23 @@
 
 	var Event = YAHOO.util.Event,
 		Lang = YAHOO.lang,
-		delegates = [];
+		delegates = [],
+
+
+		getMatch = function(el, selector, container) {
+		
+			var returnVal;
+		
+			if (!el || el === container) {
+				returnVal = false;
+			}
+			else {
+				returnVal = YAHOO.util.Selector.test(el, selector) ? el: getMatch(el.parentNode, selector, container);
+			}
+		
+			return returnVal;
+		
+		};
 
 
 	Lang.augmentObject(Event, {
@@ -27,10 +46,10 @@
 		 * determine for what element(s) the event listener should be called.		
 		 * @param {Object}   obj	An arbitrary object that will be 
 		 *                             passed as a parameter to the listener.
-		 * @param {Boolean|object}  overrideContext  If true, the obj passed in becomes
-		 *                             the execution context of the listener. If an
-		 *                             object, this object becomes the execution
-		 *                             context.
+		 * @param {Boolean|object}  overrideContext  If true, the value of the 
+		 * 							obj parameter becomes the execution context
+		 *                          of the listener. If an object, this object
+		 *                          becomes the execution context.
 		 * @return {Function} Function that will call the event listener 
 		 * specified by the <code>YAHOO.util.Event.delegate</code> method.
          * @private
@@ -43,12 +62,18 @@
 
 				var container = this,
 					target = Event.getTarget(event),
+					selector = filter,
+
+					//	The user might have specified the document object 
+					//	as the delegation container, in which case it is not 
+					//	nessary to scope the provided CSS selector(s) to the 
+					//	delegation container
+					bDocument = (container.nodeType === 9),
+
 					matchedEl,
 					context,
-					elements,
-					element,
-					nElements,
-					i;
+					sID,
+					sIDSelector;
 
 
 				if (Lang.isFunction(filter)) {
@@ -56,20 +81,32 @@
 				}
 				else if (Lang.isString(filter)) {
 
-					elements = YAHOO.util.Selector.query(filter, container);
-					nElements = elements.length;
+					if (!bDocument) {
 
-					if (nElements > 0) {
+						sID = container.id;
 
-						i = elements.length - 1;
+						if (!sID) {
+							sID = Event.generateId(container);
+						}						
 
-						do {
-							element = elements[i];
-		                    if (element === target || YAHOO.util.Dom.isAncestor(element, target)) {
-								matchedEl = element;
-							}
-						}
-						while (i--);
+						//	Scope all selectors to the container
+						sIDSelector = ("#" + sID + " ");
+						selector = (sIDSelector + filter).replace(/,/gi, ("," + sIDSelector));
+
+					}
+
+
+					if (YAHOO.util.Selector.test(target, selector)) {
+						matchedEl = target;
+					}
+					else if (YAHOO.util.Selector.test(target, ((selector.replace(/,/gi, " *,")) + " *"))) {
+
+						//	The target is a descendant of an element matching 
+						//	the selector, so crawl up to find the ancestor that 
+						//	matches the selector
+
+						matchedEl = getMatch(target, selector, container);
+
 					}
 
 				}
@@ -108,7 +145,9 @@
 		 * receive three arguments by default: the DOM event, the element  
 		 * specified by the filtering function or CSS selector, and the 
 		 * container element (the element to which the event listener is 
-		 * bound).
+		 * bound).  (Note: Using the delegate method requires the event-delegate 
+		 * module.  Using CSS selectors as the filtering criteria for delegated 
+		 * event listeners requires inclusion of the Selector Utility.)
          *
          * @method delegate
          *
@@ -121,29 +160,29 @@
 		 * determine for what element(s) the event listener should be called. 
 		 * When a function is specified, the function should return an 
 		 * HTML element.  Using a CSS Selector requires the inclusion of the 
-		 * CSS Selector utility (YAHOO.util.Selector).
+		 * CSS Selector Utility.
          * @param {Object}   obj    An arbitrary object that will be 
          *                             passed as a parameter to the listener
-         * @param {Boolean|object}  overrideContext  If true, the obj passed in becomes
+         * @param {Boolean|object}  overrideContext  If true, the value of the obj parameter becomes
          *                             the execution context of the listener. If an
          *                             object, this object becomes the execution
          *                             context.
-         * @return {Boolean} true Returns true if the action was successful or defered,
-         *                        false if one or more of the elements 
-         *                        could not have the listener attached,
-         *                        or if the operation throws an exception.
+         * @return {Boolean} Returns true if the action was successful or defered,
+         *                   false if one or more of the elements 
+         *                   could not have the listener attached,
+         *                   or if the operation throws an exception.
          * @static
          * @for Event
          */
 		delegate: function (container, type, fn, filter, obj, overrideContext) {
 
-			var sType = Event._getType(type),
+			var sType = type,
 				fnMouseDelegate,
 				fnDelegate;
 
 
 			if (Lang.isString(filter) && !YAHOO.util.Selector) {
-		        YAHOO.log("Using delegate functionality with a CSS selector requires the Selector Utility", "error", "Event");
+				YAHOO.log("Using a CSS selector to define the filtering criteria for a delegated listener requires the Selector Utility.", "error", "Event");
 		        return false;
 			}
 
@@ -151,9 +190,12 @@
 			if (type == "mouseenter" || type == "mouseleave") {
 
 				if (!Event._createMouseDelegate) {
-			        YAHOO.log("Delegating a " + type + " event requires the event-mouseleave module", "error", "Event");
-			        return false;				
+					YAHOO.log("Delegating a " + type + " event requires the event-mouseenter module.", "error", "Event");
+			        return false;
 				}
+
+				//	Look up the real event--either mouseover or mouseout
+				sType = Event._getType(type);
 
 				fnMouseDelegate = Event._createMouseDelegate(fn, obj, overrideContext);
 
@@ -189,17 +231,22 @@
          * @param {Function} fn The method the event invokes.  If fn is
          *  undefined, then all event listeners for the type of event are 
          *  removed.
-         * @return {boolean} true Returns true if the unbind was successful, false 
+         * @return {boolean} Returns true if the unbind was successful, false 
          *  otherwise.
          * @static
          * @for Event
          */
 		removeDelegate: function (container, type, fn) {
 
-			var sType = Event._getType(type),
+			var sType = type,
 				returnVal = false,
 				index,
 				cacheItem;
+
+			//	Look up the real event--either mouseover or mouseout
+			if (type == "mouseenter" || type == "mouseleave") {
+				sType = Event._getType(type);
+			}
 
 			index = Event._getCacheIndex(delegates, container, sType, fn);
 
