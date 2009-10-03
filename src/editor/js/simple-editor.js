@@ -3138,6 +3138,18 @@ var Dom = YAHOO.util.Dom,
                 }
             });
             /**
+            * @attribute preserveDangerousScriptTags
+            * @description Do not clear out script tags (simply escape them so they do not execute) from injected HTML.  This has potential security risks and should only be used if you trust your users to post javascript-enabled content.?
+            * @default false
+            * @type Boolean
+            */            
+            this.setAttributeConfig('preserveDangerousScriptTags', {
+                value: attr.preserveDangerousScriptTags || false,
+                validator: function(value) {
+                    return !!value;
+                }
+            });
+            /**
             * @attribute dompath
             * @description Toggle the display of the current Dom path below the editor
             * @default false
@@ -4609,10 +4621,16 @@ var Dom = YAHOO.util.Dom,
                 html = html.replace(/\t/gi, '&nbsp;&nbsp;&nbsp;&nbsp;'); //Replace all tabs
             }
             //Removing Script Tags from the Editor
-            html = html.replace(/<script([^>]*)>/gi, '<bad>');
-            html = html.replace(/<\/script([^>]*)>/gi, '</bad>');
-            html = html.replace(/&lt;script([^>]*)&gt;/gi, '<bad>');
-            html = html.replace(/&lt;\/script([^>]*)&gt;/gi, '</bad>');
+            if ( this.get('preserveDangerousScriptTags') ) {
+                html = html.replace(/<script([^>]*)>/gi, '&lt;script$1&gt;');
+                html = html.replace(/<\/script([^>]*)>/gi, '&lt;/script&gt;');
+            } else {
+                html = html.replace(/<script([^>]*)>/gi, '<bad>');
+                html = html.replace(/<\/script([^>]*)>/gi, '</bad>');
+                html = html.replace(/&lt;script([^>]*)&gt;/gi, '<bad>');
+                html = html.replace(/&lt;\/script([^>]*)&gt;/gi, '</bad>');
+            }
+
             //Replace the line feeds
             html = html.replace(/\r\n/g, '<YUI_LF>').replace(/\n/g, '<YUI_LF>').replace(/\r/g, '<YUI_LF>');
             
@@ -4739,6 +4757,11 @@ var Dom = YAHOO.util.Dom,
 		    html = html.replace(/<YUI_EMBED([^>]*)>/g, '<embed$1>');
 		    html = html.replace(/<\/YUI_EMBED>/g, '<\/embed>');
             
+            if ( this.get('preserveDangerousScriptTags') ) {
+		        html = html.replace(/&lt;script([^&>]*)&gt;/g, '<script$1>');
+		        html = html.replace(/&lt;\/script&gt;/g, '<\/script>');
+            }
+
             //This should fix &amp;'s in URL's
             html = html.replace(/ &amp; /gi, ' YUI_AMP ');
             html = html.replace(/ &amp;/gi, ' YUI_AMP_F ');

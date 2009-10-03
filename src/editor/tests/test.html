@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>Editor Test Suite</title>
+
+<link rel="stylesheet" type="text/css" href="../../../build/reset-fonts-grids/reset-fonts-grids.css"> 
+<link type="text/css" rel="stylesheet" href="../../../build/logger/assets/logger.css">
+<link type="text/css" rel="stylesheet" href="../../../build/yuitest/assets/testlogger.css">
+
+<link rel="stylesheet" type="text/css" href="../../../build/container/assets/skins/sam/container.css"> 
+<link rel="stylesheet" type="text/css" href="../../../build/menu/assets/skins/sam/menu.css"> 
+<link rel="stylesheet" type="text/css" href="../../../build/button/assets/skins/sam/button.css"> 
+<link rel="stylesheet" type="text/css" href="../../../build/resize/assets/skins/sam/resize.css"> 
+<link rel="stylesheet" type="text/css" href="../../../build/editor/assets/skins/sam/editor.css"> 
+
+<script type="text/javascript" src="../../../build/utilities/utilities.js"></script>
+<script type="text/javascript" src="../../../build/event-simulate/event-simulate-min.js"></script>
+<script type="text/javascript" src="../../../build/logger/logger-min.js"></script>
+<script type="text/javascript" src="../../../build/container/container_core-min.js"></script>
+<script type="text/javascript" src="../../../build/menu/menu-min.js"></script>
+<script type="text/javascript" src="../../../build/button/button-min.js"></script>
+<script type="text/javascript" src="../../../build/resize/resize-min.js"></script>
+<script type="text/javascript" src="../js/toolbar-button.js"></script>
+<script type="text/javascript" src="../js/toolbar.js"></script>
+<script type="text/javascript" src="../js/simple-editor.js"></script>
+<script type="text/javascript" src="../js/editor.js"></script>
+<script type="text/javascript" src="../../../build/yuitest/yuitest.js"></script>
+
+<style>
+#testRegEx, #testRegEx2 {
+    display: none;
+}
+</style>
+</head>
+<body class="yui-skin-sam">
+    <textarea id="editor">&lt;p&gt;This is a test: &lt;script type="text/javascript" src="http://gist.github.com/198143.js"&gt;&lt;/script&gt;&lt;/p&gt;</textarea>
+    <input id="submit" type="button" value="Save HTML">
+    <script type="text/javascript">
+    (function() {
+        var config = {
+            height: '300px',
+            width:  '600px',
+            animate: true,
+            dompath: true,
+            focusAtStart: true,
+            preserveDangerousScriptTags: true
+        };
+        var editor = new YAHOO.widget.SimpleEditor('editor', config);
+        delete editor.invalidHTML.script;
+        editor.render();
+        
+        var myLogReader = new YAHOO.widget.LogReader(); 
+        YAHOO.util.Event.on('submit', 'click', function(ev) {
+            YAHOO.util.Event.preventDefault(ev);
+            editor.saveHTML();
+            YAHOO.log( "Editor HTML: " + editor.get('element').value );
+        });
+        //}, editor, true);
+     })();
+    </script>
+</body>
+</html>
